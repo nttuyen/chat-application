@@ -15,6 +15,7 @@ function ChatNotification() {
   this.jzChatRead = "";
   this.jzChatSend = "";
   this.token = "";
+  this.rootUserName = "";
   this.username = "";
   this.sessionId = "";
   this.spaceId = ""; // Id of current space being in
@@ -48,6 +49,7 @@ function ChatNotification() {
  */
 ChatNotification.prototype.initOptions = function(options) {
   this.token = options.token;
+  this.rootUserName = options.rootUserName;
   this.username = options.username;
   this.sessionId = options.sessionId;
   this.jzInitUserProfile = options.urlInitUserProfile;
@@ -731,7 +733,7 @@ ChatNotification.prototype.attachChatToProfile = function() {
     var fullName = jqchat(".user-status span", $UIStatusProfilePortlet).text();
     var $userActions = jqchat("#UIActionProfilePortlet .user-actions");
 
-    if (userName != chatNotification.username && userName !== "" && $userActions.has(".chatPopupOverlay").length === 0 && $userActions.has("button").length) {
+    if (userName != chatNotification.rootUserName && userName != chatNotification.username && userName !== "" && $userActions.has(".chatPopupOverlay").length === 0 && $userActions.has("button").length) {
         var strChatLink = "<a style='margin-top:0px !important;margin-right:-3px' data-username='" + userName + "' title='Chat' class='btn chatPopupOverlay chatPopup-" + userName.replace('.', '-') + "' type='button'><i class='uiIconChat uiIconForum uiIconLightGray'></i> Chat</a>";
 
         if ($userActions.has(".weemoCallOverlay").length === 0) {
@@ -899,6 +901,7 @@ var chatNotification = new ChatNotification();
     // CHAT NOTIFICATION INIT
     chatNotification.initOptions({
       "token": $notificationApplication.attr("data-token"),
+      "rootUserName": $notificationApplication.attr("data-root-username"),
       "username": $notificationApplication.attr("data-username"),
       "sessionId":$notificationApplication.attr("data-session-id"),
       "urlInitUserProfile": $notificationApplication.jzURL("NotificationApplication.initUserProfile"),

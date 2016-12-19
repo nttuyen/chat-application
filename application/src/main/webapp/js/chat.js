@@ -10,6 +10,7 @@ var chatApplication = new ChatApplication();
      */
     var $chatApplication = $("#chat-application");
 
+    chatApplication.rootUserName = $chatApplication.attr("data-root-username");
     chatApplication.username = $chatApplication.attr("data-username");
     chatApplication.token = $chatApplication.attr("data-token");
     var chatServerURL = $chatApplication.attr("data-chat-server-url");

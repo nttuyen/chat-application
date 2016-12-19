@@ -650,9 +650,18 @@ public class ChatServiceImpl implements org.exoplatform.chat.services.ChatServic
     if (isAdmin)
       rooms.addAll(this.getExistingRooms(UserServiceImpl.SUPPORT_USER, withPublic, isAdmin, notificationService, tokenService, dbName));
 
+    RoomBean root = null;
     for (RoomBean roomBean:rooms)
     {
       String targetUser = roomBean.getUser();
+      if (ChatService.ROOT_USERNAME.equals(targetUser)) {
+        // Only hide root at contact list if there is no chat message with root
+        String result = this.read(roomBean.getRoom(), this.userService, true, null, dbName);
+        if ("no messages".equals(result)) {
+          root = roomBean;
+          continue;
+        }
+      }
       roomBean.setFavorite(userBean.isFavorite(targetUser));
 
       if (availableUsers.keySet().contains(targetUser))
@@ -678,6 +687,10 @@ public class ChatServiceImpl implements org.exoplatform.chat.services.ChatServic
       }
     }
 
+    if (root != null) {
+      rooms.remove(root);
+    }
+
     if (withUsers)
     {
       if (!withOffline)
@@ -690,6 +703,10 @@ public class ChatServiceImpl implements org.exoplatform.chat.services.ChatServic
 
       for (UserBean availableUser: availableUsers.values())
       {
+        if (ChatService.ROOT_USERNAME.equals(availableUser.getName())) {
+          continue;
+        }
+
         RoomBean roomBean = new RoomBean();
         roomBean.setUser(availableUser.getName());
         roomBean.setFullname(availableUser.getFullname());

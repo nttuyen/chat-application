@@ -646,6 +646,7 @@ public class UserServiceImpl implements org.exoplatform.chat.services.UserServic
     orList.add(spaces);
     orList.add(teams);
     BasicDBObject query = new BasicDBObject("$or", orList);
+    query.put("user", new BasicDBObject("$ne", ChatService.ROOT_USERNAME));
 
 
     DBCursor cursor = coll.find(query);
@@ -694,6 +695,7 @@ public class UserServiceImpl implements org.exoplatform.chat.services.UserServic
     orList.add(un);
     orList.add(fn);
     BasicDBObject query = new BasicDBObject("$or", orList);
+    query.put("user", new BasicDBObject("$ne", ChatService.ROOT_USERNAME));
 
     DBCursor cursor = coll.find(query);
     while (cursor.hasNext())
