@@ -654,7 +654,7 @@ public class ChatServiceImpl implements org.exoplatform.chat.services.ChatServic
     for (RoomBean roomBean:rooms)
     {
       String targetUser = roomBean.getUser();
-      if (ChatService.ROOT_USERNAME.equals(targetUser)) {
+      if (ChatUtils.getSupperUser().equals(targetUser)) {
         // Only hide root at contact list if there is no chat message with root
         String result = this.read(roomBean.getRoom(), this.userService, true, null, dbName);
         if ("no messages".equals(result)) {
@@ -703,7 +703,7 @@ public class ChatServiceImpl implements org.exoplatform.chat.services.ChatServic
 
       for (UserBean availableUser: availableUsers.values())
       {
-        if (ChatService.ROOT_USERNAME.equals(availableUser.getName())) {
+        if (ChatUtils.getSupperUser().equals(availableUser.getName())) {
           continue;
         }
 

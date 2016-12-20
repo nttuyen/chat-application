@@ -27,7 +27,6 @@ import java.util.List;
 
 public interface ChatService
 {
-  public static final String ROOT_USERNAME = "root";
   public static final String M_ROOM_PREFIX = "messages_room_";
   public static final String M_ROOMS_COLLECTION = "rooms";
 

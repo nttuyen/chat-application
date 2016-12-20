@@ -15,7 +15,9 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.chat.services.ChatService;
+import org.exoplatform.container.PortalContainer;
 import org.exoplatform.ecm.utils.text.Text;
+import org.exoplatform.portal.config.UserACL;
 
 public class ChatUtils {
 
@@ -128,5 +130,19 @@ public class ChatUtils {
     message = message.replaceAll("<br/>", "\n");
     message = message.replaceAll("&#92", "\\\\");
     return message;
+  }
+
+  public static String getSupperUser() {
+    String superUser = "root";
+
+    PortalContainer portalContainer = PortalContainer.getInstance();
+    if (portalContainer != null) {
+      UserACL acl = portalContainer.getComponentInstanceOfType(UserACL.class);
+      if (acl != null) {
+        superUser = acl.getSuperUser();
+      }
+    }
+
+    return superUser;
   }
 }

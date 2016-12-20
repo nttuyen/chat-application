@@ -1,5 +1,5 @@
 <div id="chat-application"
-  data-root-username="<%=org.exoplatform.chat.services.ChatService.ROOT_USERNAME%>"
+  data-root-username="<%=org.exoplatform.chat.utils.ChatUtils.getSupperUser()%>"
   data-username="<%=user%>"
   data-token="<%=token%>"
   data-chat-server-url="<%=chatServerURL%>"
