@@ -85,8 +85,12 @@ ChatRoom.prototype.init = function(username, token, targetUser, targetFullname, 
       jzStoreParam("lastFullName"+thiss.username, thiss.targetFullname, 60000);
       jzStoreParam("lastTS"+thiss.username, "0");
       jzStoreParam("lastUpdatedTS"+thiss.username, "0");
-      thiss.chatEventInt = window.clearInterval(thiss.chatEventInt);
-      thiss.chatEventInt = setInterval(jqchat.proxy(thiss.refreshChat, thiss), thiss.chatIntervalChat);
+
+      var lastTS = jzGetParam("lastTS"+this.username) || 0;
+      var lastUpdatedTS = jzGetParam("lastUpdatedTS"+this.username) || 0;
+      var fromTimestamp = Math.max(lastTS, lastUpdatedTS);
+      chatApplication.addChatRoom(thiss.id, fromTimestamp, "false", jqchat.proxy(thiss.refreshChatCallback, thiss));
+
       thiss.refreshChat(true, function() {
         // always scroll to the last message when loading a chat room
         var $chats = jqchat("#chats");
@@ -105,7 +109,7 @@ ChatRoom.prototype.setMiniChatDiv = function(elt) {
 };
 
 ChatRoom.prototype.clearInterval = function() {
-  this.chatEventInt = window.clearInterval(this.chatEventInt);
+  chatApplication.removeRoomChat(this.id);
 };
 
 ChatRoom.prototype.onShowMessages = function(callback) {
@@ -341,6 +345,94 @@ ChatRoom.prototype.refreshChat = function(forceRefresh, callback) {
 
     })
 
+  }
+};
+ChatRoom.prototype.refreshChatCallback = function(resCode, res) {
+  var thiss = this;
+  // res is null in case the XHR is cancelled, thus nothing to do here
+  if(!res) {
+    return;
+  }
+
+  var err = false;
+  if (resCode >= 400) {
+    err = resCode;
+  }
+
+  // check for an error
+  if (err) {
+    if (err === 403 &&  ( thiss.messages.length === 0 || "type-kicked" !== thiss.messages[0].options.type)) {
+
+      // Show message user has been kicked
+      var options = {
+        "type" : "type-kicked"
+      };
+      var messages = [{
+        "message": "",
+        "options": options,
+        "isSystem": "true"
+      }];
+      thiss.messages = messages;
+      thiss.showMessages();
+
+      // Disable action buttons
+      var $msg = jqchat('#msg');
+      var $msButtonRecord = jqchat(".msButtonRecord");
+      var $msgEmoticons = jqchat(".msg-emoticons");
+      var $meetingActionToggle = jqchat(".meeting-action-toggle");
+      $msg.attr("disabled", "disabled");
+      $msButtonRecord.attr("disabled", "disabled");
+      $msButtonRecord.tooltip("disable");
+      $msgEmoticons.parent().addClass("disabled");
+      $msgEmoticons.parent().tooltip("disable");
+      $meetingActionToggle.addClass("disabled");
+      $meetingActionToggle.children("span").tooltip("disable");
+    } else if(thiss.lastCallOwner !== thiss.targetUser || thiss.loadingNewRoom) {
+      // the room init operation is canceled, thus no messages will be displayed
+      thiss.showMessages();
+    }
+    thiss.loadingNewRoom = false;
+    thiss.lastCallOwner = thiss.targetUser;
+    if (typeof thiss.onRefreshCB === "function") {
+      thiss.onRefreshCB(1);
+    }
+    return;
+  } else if (thiss.miniChat === undefined) {
+    chatApplication.activateRoomButtons();
+  }
+
+
+  var data = res;
+
+  // If the requested room (returned from HTTP response) is not the same as the currently requested room
+  if(thiss.loadingNewRoom && thiss.callingOwner && (!data.room || thiss.callingOwner.indexOf(data.room) < 0)) {
+    return;
+  }
+
+  if (data.messages.length > 0) {
+    var ts = data.timestamp;
+    var updatedTS = Math.max.apply(Math,TAFFY(data.messages)().select("lastUpdatedTimestamp").filter(Boolean));
+    if (updatedTS < 0) updatedTS = 0;
+    jzStoreParam("lastTS"+thiss.username, ts, 600);
+    jzStoreParam("lastUpdatedTS"+thiss.username, updatedTS, 600);
+
+    thiss.addMessagesToLocalList(data);
+    thiss.showMessages();
+  } else if(thiss.lastCallOwner !== thiss.targetUser || thiss.loadingNewRoom) {
+    // If room has changed but no messages was added there yet
+    thiss.showMessages();
+  }
+  // set last succeeded request chat owner
+  // to be able to detect when user switches from a room to another
+  thiss.lastCallOwner = thiss.targetUser;
+  if(thiss.loadingNewRoom) {
+    // Enable composer if the new room loading has finished
+    enableMessageComposer(true);
+    thiss.loadingNewRoom = false;
+  }
+
+  if (typeof thiss.onRefreshCB === "function") {
+    thiss.onRefreshCB(0);
   }
 };
 

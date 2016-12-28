@@ -55,6 +55,8 @@ var chatApplication = new ChatApplication();
     chatApplication.jzSaveTeamRoom = chatServerURL+"/saveTeamRoom";
     chatApplication.room = "";
 
+    chatApplication.jzChatRefresh = chatServerURL + "/chatRefresh";
+
     chatApplication.initChat();
     chatApplication.initChatProfile();
 
@@ -1491,6 +1493,12 @@ function ChatApplication() {
 
   this.showRoomOfflinePeople = false;
   this.plugins = [];
+  
+  this.chatIntervalRefresh = 3000;
+  this.jzChatRefresh = "";
+  this.openRooms = {};
+  this.notificationCallback = null;
+  this.chatRefreshInt = false;
 }
 
 ChatApplication.prototype.registerEvent = function(plugin) {
@@ -1825,6 +1833,9 @@ ChatApplication.prototype.initChat = function() {
   this.chatOnlineInt = clearInterval(this.chatOnlineInt);
   this.chatOnlineInt = setInterval(jqchat.proxy(this.refreshWhoIsOnline, this), this.chatIntervalUsers);
   this.refreshWhoIsOnline();
+
+  this.chatRefreshInt = clearInterval(this.chatRefreshInt);
+  this.chatRefreshInt = setInterval(jqchat.proxy(this.chatRefresh, this), this.chatIntervalRefresh);
 
   if (this.username!==this.ANONIM_USER) setTimeout(jqchat.proxy(this.showSyncPanel, this), 1000);
 };
@@ -3656,5 +3667,66 @@ ChatApplication.prototype.toggleOfflineRoomUsers = function(showPeople) {
     offlineUsers.show();
   } else {
     offlineUsers.hide();
+  }
+};
+
+ChatApplication.prototype.setNotificationCallback = function(callback) {
+  this.notificationCallback = callback;
+};
+ChatApplication.prototype.addChatRoom = function(roomId, fromTimestamp, isTextOnly, callback) {
+  if (this.openRooms == undefined) {
+    this.openRooms = {};
+  }
+  this.openRooms[roomId] = {
+    id: roomId,
+    fromTimestamp: fromTimestamp,
+    isTextOnly: isTextOnly,
+    callback: callback
+  }
+};
+ChatApplication.prototype.removeRoomChat = function(roomId) {
+  if (this.openRooms == undefined || this.openRooms[roomId] == undefined) return;
+  delete this.openRooms[roomId];
+};
+ChatApplication.prototype.chatRefresh = function() {
+  if (this.chatRefreshRequest) {
+    return;
+  }
+
+  var rooms = [];
+  if (this.openRooms != undefined) {
+    jqchat.each(this.openRooms, function(id, room) {
+      rooms.push(room);
+    });
+  }
+
+  if (this.username !== this.ANONIM_USER && this.token !== "---") {
+    this.chatRefreshRequest = jqchat.ajax({
+      url: this.jzChatRefresh + "?user=" + this.username + "&dbName=" + this.dbName,
+      type: 'POST',
+      dataType: "json",
+      data: JSON.stringify(rooms),
+      contentType:"application/json; charset=utf-8",
+      headers: {
+        'Authorization': 'Bearer ' + this.token
+      },
+      context: this,
+      success: function(response){
+        this.chatRefreshRequest = null;
+        if (response.notification && this.notificationCallback) {
+          this.notificationCallback(response.notification);
+        }
+        var rooms = response.rooms;
+        var _this = this;
+        jqchat.each(rooms, function(id, roomResponse) {
+          if (_this.openRooms[id].callback) {
+            _this.openRooms[id].callback(roomResponse.responseCode, roomResponse.data);
+          }
+        });
+      },
+      error: function (response){
+        this.chatRefreshRequest = null;
+      }
+    });
   }
 };

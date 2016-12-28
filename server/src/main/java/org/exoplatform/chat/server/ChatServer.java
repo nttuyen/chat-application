@@ -54,6 +54,7 @@ import javax.mail.internet.MimeMultipart;
 import javax.mail.util.ByteArrayDataSource;
 
 import juzu.impl.request.Request;
+import juzu.plugin.jackson.Jackson;
 import juzu.request.ApplicationContext;
 import juzu.request.UserContext;
 
@@ -220,6 +221,93 @@ public class ChatServer
     }
 
     return Response.ok("ok").withMimeType("application/json; charset=UTF-8").withHeader("Cache-Control", "no-cache");
+  }
+
+  /**
+   * Get notifications and the messages of opening chat rooms
+   *
+   * @param user
+   * @param token
+   * @param dbName
+   * @param rooms
+   * @return
+   */
+  @Resource
+  @Route("/chatRefresh")
+  public Response.Content getMessage(String user, String token, String dbName, @Jackson List<Map> rooms) {
+    if (!tokenService.hasUserWithToken(user, token, dbName)) {
+      return Response.notFound("Petit malin !");
+    }
+
+    //Get notification first
+    boolean detailed = true;
+    int totalUnread = 0;
+    List<NotificationBean> notifications = null;
+    if (!detailed) {
+      // GETTING TOTAL NOTIFICATION WITHOUT DETAILS
+      totalUnread = notificationService.getUnreadNotificationsTotal(user, dbName);
+      if (userService.isAdmin(user, dbName))
+      {
+        totalUnread += notificationService.getUnreadNotificationsTotal(UserService.SUPPORT_USER, dbName);
+      }
+    } else {
+      // GETTING ALL NOTIFICATION DETAILS
+      notifications = notificationService.getUnreadNotifications(user, userService, dbName);
+      totalUnread = notifications.size();
+    }
+
+    String notifiData = "{\"total\": \""+totalUnread+"\"";
+    if (detailed && notifications!=null)
+    {
+      notifiData += ","+NotificationBean.notificationstoJSON(notifications);
+    }
+    notifiData += "}";
+
+    StringBuilder response = new StringBuilder("{");
+
+    response.append("\"notification\": ").append(notifiData);
+    response.append(", \"rooms\": {");
+
+    // Get message on the room list
+    boolean first = true;
+    for (Map<String, String> room : rooms) {
+      String roomId = room.get("id");
+      String fromTimestamp = String.valueOf(room.get("fromTimestamp"));
+      String isTextOnly = room.get("isTextOnly");
+
+      String data = readRoom(user, roomId, dbName, fromTimestamp, isTextOnly);
+      if (!first) {
+        response.append(", ");
+      } else {
+        first = false;
+      }
+      response.append("\"").append(roomId).append("\": ").append(data);
+    }
+
+    response.append("}").append("}");
+    return Response.ok(response.toString())
+            .withMimeType("application/json")
+            .withHeader("Cache-Control", "no-cache")
+            .withCharset(Tools.UTF_8);
+  }
+
+  private String readRoom(String user, String room, String dbName, String fromTimestamp, String isTextOnly) {
+    int responseCode = 200;
+    Long from = null;
+    try {
+      if (fromTimestamp!=null && !"".equals(fromTimestamp))
+        from = Long.parseLong(fromTimestamp);
+    } catch (NumberFormatException nfe) {
+      LOG.info("fromTimestamp is not a valid Long number");
+    }
+
+    // Only members of the room can view the messages
+    if (!isMemberOfRoom(user, room, dbName)) {
+      responseCode = 403;
+    }
+
+    String data = chatService.read(room, userService, "true".equals(isTextOnly), from, dbName);
+    return new StringBuilder("{\"responseCode\": ").append(responseCode).append(", \"data\": ").append(data).append("}").toString();
   }
 
   @Resource

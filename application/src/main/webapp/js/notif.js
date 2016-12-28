@@ -103,9 +103,8 @@ ChatNotification.prototype.initUserProfile = function(callback) {
         callback(this.username, fullname);
       }
 
-      this.notifEventInt = window.clearInterval(this.notifEventInt);
-      this.notifEventInt = setInterval(jqchat.proxy(this.refreshNotif, this), this.chatIntervalNotif);
       this.refreshNotif();
+      chatApplication.setNotificationCallback(jqchat.proxy(this.notificationCallback, this));
 
       this.statusEventInt = window.clearInterval(this.statusEventInt);
       this.statusEventInt = setInterval(jqchat.proxy(this.refreshStatusChat, this), this.chatIntervalStatus);
@@ -389,6 +388,77 @@ ChatNotification.prototype.refreshNotif = function() {
     }
   });
 
+};
+
+ChatNotification.prototype.notificationCallback = function(data) {
+  if (data === false) {
+    var $chatNotification = jqchat("#chat-notification");
+    $chatNotification.html('<span></span>');
+    $chatNotification.css('display', 'none');
+    this.oldNotifTotal = -1;
+
+  } else if(this.oldNotifTotal!=data.notifications.length){
+    var notifyMe = false;
+    data.notifications.sort(function(el1, el2){
+      return el2.timestamp - el1.timestamp;
+    });
+    var lastMsg = data.notifications[0]; // the last one is at 0 index
+
+
+    //check if a notification has been spawn on other tab
+    var lastNotifTime = localStorage.getItem('lastNotifTime');
+    lastNotifTime = JSON.parse(lastNotifTime);
+
+    var nbrOfFullScreenChat = localStorage.getItem('nbrOfFullScreenChat');
+    nbrOfFullScreenChat = JSON.parse(nbrOfFullScreenChat);
+
+    var nbrOfFullSocial = localStorage.getItem('nbrOfFullSocial');
+    nbrOfFullSocial = JSON.parse(nbrOfFullSocial);
+
+    if(typeof chatApplication === "undefined" && nbrOfFullScreenChat!=null && nbrOfFullScreenChat > 0) {
+      return;
+    }
+
+    if(lastMsg !== undefined && ( lastNotifTime == null || lastNotifTime !== lastMsg.timestamp)) {
+      localStorage.setItem('lastNotifTime',JSON.stringify(lastMsg.timestamp));
+    } else {
+      return;
+    }
+
+    var total = Math.abs(data.notifications.length);
+    if (total>this.oldNotifTotal && ( this.profileStatus !== "donotdisturb" || desktopNotification.canBypassDonotDistrub()) &&
+        this.profileStatus !== "offline" && desktopNotification.canBypassRoomNotif(lastMsg)) {
+      notifyMe = true;
+    }
+
+    //console.log('refreshNotif :: '+total);
+    var $chatNotification = jqchat("#chat-notification");
+    if (total>0) {
+      if(desktopNotification.canShowOnSiteNotif() && notifyMe) {
+        $chatNotification.html('<span class="notif-total  badgeDefault badgePrimary mini">'+total+'</span>');
+        $chatNotification.css('display', 'block');
+      }
+    } else {
+      $chatNotification.html('<span></span>');
+      $chatNotification.css('display', 'none');
+      var $chatNotificationsDetails = jqchat("#chat-notifications-details");
+      $chatNotificationsDetails.css("display", "none");
+      $chatNotificationsDetails.html('<span class="chat-notification-loading no-user-selection">'+chatBundleData["exoplatform.chat.loading"]+'</span>');
+      $chatNotificationsDetails.parent().removeClass("full-width");
+      $chatNotificationsDetails.next().hide();
+    }
+
+    if(notifyMe) {
+      if(desktopNotification.canPlaySound()){
+        this.playNotifSound();
+      }
+      if(desktopNotification.canShowDesktopNotif()){
+        this.showDesktopNotif(this.chatPage,total,lastMsg);
+      }
+    }
+
+    this.oldNotifTotal = total;
+  }
 };
 
 /**
