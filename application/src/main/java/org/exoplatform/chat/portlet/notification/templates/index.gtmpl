@@ -2,7 +2,7 @@
   ${messages}
 </script>
 <div id="chat-status"
-  data-root-username="<%=org.exoplatform.chat.utils.ChatUtils.getSupperUser()%>"
+  data-root-username="<%=org.exoplatform.chat.utils.ChatUtils.getSuperUser()%>"
   data-username="<%=user%>"
   data-token="<%=token%>"
   data-session-id="<%=sessionId%>"
