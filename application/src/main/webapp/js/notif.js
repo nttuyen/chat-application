@@ -15,7 +15,6 @@ function ChatNotification() {
   this.jzChatRead = "";
   this.jzChatSend = "";
   this.token = "";
-  this.rootUserName = "";
   this.username = "";
   this.sessionId = "";
   this.spaceId = ""; // Id of current space being in
@@ -23,6 +22,7 @@ function ChatNotification() {
   this.jzNotification = "";
   this.jzGetStatus = "";
   this.jzSetStatus = "";
+  this.jzCheckRootUser = "";
 
   this.notifEventURL = "";
   this.notifEventInt = "";
@@ -49,13 +49,13 @@ function ChatNotification() {
  */
 ChatNotification.prototype.initOptions = function(options) {
   this.token = options.token;
-  this.rootUserName = options.rootUserName;
   this.username = options.username;
   this.sessionId = options.sessionId;
   this.jzInitUserProfile = options.urlInitUserProfile;
   this.jzNotification = options.urlNotification;
   this.jzGetStatus = options.urlGetStatus;
   this.jzSetStatus = options.urlSetStatus;
+  this.jzCheckRootUser = options.jzCheckRootUser;
   this.chatIntervalChat = options.chatInterval;
   this.chatIntervalNotif = options.notificationInterval;
   this.chatIntervalStatus = options.statusInterval;
@@ -733,7 +733,29 @@ ChatNotification.prototype.attachChatToProfile = function() {
     var fullName = jqchat(".user-status span", $UIStatusProfilePortlet).text();
     var $userActions = jqchat("#UIActionProfilePortlet .user-actions");
 
-    if (userName != chatNotification.rootUserName && userName != chatNotification.username && userName !== "" && $userActions.has(".chatPopupOverlay").length === 0 && $userActions.has("button").length) {
+    if (chatNotification.rootUsers == undefined) {
+      chatNotification.rootUsers = {};
+    }
+    if (chatNotification.rootUsers[userName] == undefined) {
+      chatNotification.rootUsers[userName] = true;
+      jqchat.ajax({
+        url: this.jzCheckRootUser,
+        data: {
+          "username": userName
+        },
+        headers: {
+          'Authorization': 'Bearer ' + this.token
+        },
+        context: this,
+        success: function(response){
+          if (response != 1) {
+            chatNotification.rootUsers[userName] = false;
+          }
+        }
+      });
+    }
+
+    if (!chatNotification.rootUsers[userName] && userName != chatNotification.username && userName !== "" && $userActions.has(".chatPopupOverlay").length === 0 && $userActions.has("button").length) {
         var strChatLink = "<a style='margin-top:0px !important;margin-right:-3px' data-username='" + userName + "' title='Chat' class='btn chatPopupOverlay chatPopup-" + userName.replace('.', '-') + "' type='button'><i class='uiIconChat uiIconForum uiIconLightGray'></i> Chat</a>";
 
         if ($userActions.has(".weemoCallOverlay").length === 0) {
@@ -901,7 +923,6 @@ var chatNotification = new ChatNotification();
     // CHAT NOTIFICATION INIT
     chatNotification.initOptions({
       "token": $notificationApplication.attr("data-token"),
-      "rootUserName": $notificationApplication.attr("data-root-username"),
       "username": $notificationApplication.attr("data-username"),
       "sessionId":$notificationApplication.attr("data-session-id"),
       "urlInitUserProfile": $notificationApplication.jzURL("NotificationApplication.initUserProfile"),
@@ -916,6 +937,7 @@ var chatNotification = new ChatNotification();
       "dbName": $notificationApplication.attr("data-db-name"),
       "jzChatRead": $notificationApplication.attr("data-chat-server-url")+"/read",
       "jzChatSend": $notificationApplication.attr("data-chat-server-url")+"/send",
+      "jzCheckRootUser": $notificationApplication.attr("data-chat-server-url") + "/isRootUser",
       "portalURI": $notificationApplication.attr("data-portal-uri")
     });
     // CHAT NOTIFICATION USER INTERFACE PREPARATION

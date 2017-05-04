@@ -1014,6 +1014,14 @@ public class ChatServer
     return Response.ok(data.toString()).withMimeType("application/json").withCharset(Tools.UTF_8).withHeader("Cache-Control", "no-cache");
   }
 
+  @Resource
+  @Route("/isRootUser")
+  public Response.Content checkIsRootUser(String username) {
+    String rootUserName = ChatUtils.getSuperUser();
+    String response = rootUserName.equals(username) ? "1" : "0";
+    return Response.ok(response).withCharset(Tools.UTF_8).withHeader("Cache-Control", "no-cache");
+  }
+
   private Session getMailSession() {
     String protocal = PropertyManager.getProperty(PropertyManager.PROPERTY_MAIL_PROTOCAL);
     String host = PropertyManager.getProperty(PropertyManager.PROPERTY_MAIL_HOST);
